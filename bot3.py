@@ -29,26 +29,25 @@ async def play(ctx,*args):
 
     if ctx.message.author.voice!=None and bot.voice_clients!=[]:
 
+        song = ' '.join(args)
+        song_list.append(song)
+
         if ctx.message.guild.voice_client.is_playing()==True:
-            song = ''.join(args)
-            song_list.append(song)
             await ctx.send(f'**`{song}` ko line me dal diya**')
             return
-
-        for file in os.listdir():
-            if file.endswith('.mp3'):
-                os.remove(file)
-
-        if song_list == []:
-            song = ''.join(args)
         else:
-            song = song_list[0]
-            song_list.pop(0)
-            song_list.append(''.join(args))
+            download(ctx.message.guild.voice_client)
 
-        results = YoutubeSearch(song,max_results=1).to_dict()
-        for I in results:
-            url = 'https://www.youtube.com' + I['url_suffix']
+def playsong(voice_client):
+
+    try:
+        song = song_list.pop(0)
+    except:
+        return
+
+    results = YoutubeSearch(song,max_results=1).to_dict()
+    for I in results:
+        url = 'https://www.youtube.com' + I['url_suffix']
 
         ytdl_format_options = {
             'format' : 'bestaudio/best' ,
@@ -60,12 +59,10 @@ async def play(ctx,*args):
         }
 
         ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-        await ctx.send(f'*abhi apka gaana `{song}` ko download karne do*')
-        ytdl.download([url])
-        await ctx.send(f'**ab suno apka `{song}`**')
-        for file in os.listdir():
-            if file.endswith('.mp3'):
-                ctx.message.guild.voice_client.play(discord.FFmpegPCMAudio(file))
+        audio = ytdl.extract_info(I['link'],download = False)
+        streamable_url = audio['formats'][0]['url']
+        before_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+        voice_client.play(discord.FFmpegPCMAudio(streamable_url,before_options = before_options),after =lambda e: download(voice_client))
 
 @bot.command(aliases=['line','q'])
 async def queue(ctx):
